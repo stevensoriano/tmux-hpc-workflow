@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# Create the canonical per-project tmux sessions + an admin session. Idempotent.
+# Project list comes from projects.conf; each project session has 4 windows
+# (shell / agent / queue / logs). Agent-window pane count is per-project (default 2).
+set -u
+
+TMUX_BIN="${TMUX_BIN:-$(command -v tmux || echo tmux)}"
+CONFIG_DIR="${TMUX_HPC_CONFIG_DIR:-$HOME/.config/tmux-hpc-workflow}"
+
+declare -A PROJECTS=()
+declare -A AGENT_PANES=()
+if [[ -r "$CONFIG_DIR/projects.conf" ]]; then
+    # shellcheck disable=SC1091
+    source "$CONFIG_DIR/projects.conf"
+fi
+if [[ ${#PROJECTS[@]} -eq 0 ]]; then
+    echo "tmux-bootstrap: no projects defined. Create $CONFIG_DIR/projects.conf" >&2
+    echo "(copy config/projects.conf.sample from the repo). Continuing with admin session only." >&2
+fi
+
+bootstrap_session() {
+    local name="$1" dir="$2"
+    local BIN="${TMUX_HPC_BIN_DIR:-$HOME/bin}"
+    local panes="${AGENT_PANES[$name]:-2}"
+    [[ "$panes" =~ ^[0-9]+$ ]] || panes=2   # ignore a non-numeric config typo
+
+    if [[ ! -d "$dir" ]]; then
+        echo "skip: $name — $dir not present"
+        return 0
+    fi
+    if "$TMUX_BIN" has-session -t "$name" 2>/dev/null; then
+        echo "exists: $name"
+        return 0
+    fi
+
+    "$TMUX_BIN" new-session  -d -s "$name" -c "$dir" -n shell
+    # Shell window: two side-by-side panes.
+    "$TMUX_BIN" split-window -h -t "$name:shell" -c "$dir"
+    "$TMUX_BIN" select-pane    -t "$name:shell.1"
+    # Agent window: $panes side-by-side panes (default 2).
+    "$TMUX_BIN" new-window      -t "$name:" -c "$dir" -n agent
+    local i
+    for ((i=1; i<panes; i++)); do
+        "$TMUX_BIN" split-window -h -t "$name:agent" -c "$dir"
+    done
+    [[ "$panes" -gt 2 ]] && "$TMUX_BIN" select-layout -t "$name:agent" even-horizontal
+    "$TMUX_BIN" select-pane    -t "$name:agent.1"
+    # Queue window: enriched squeue (top) + recent sacct history (bottom).
+    "$TMUX_BIN" new-window      -t "$name:" -c "$dir" -n queue \
+        "watch -n 30 -t $BIN/squeue-dash"
+    "$TMUX_BIN" split-window -v -l 40% -t "$name:queue" -c "$dir" \
+        "watch -n 60 -t $BIN/sacct-recent"
+    "$TMUX_BIN" select-pane    -t "$name:queue.1"
+    "$TMUX_BIN" new-window      -t "$name:" -c "$dir" -n logs
+    "$TMUX_BIN" select-window  -t "$name:shell"
+    echo "created: $name → $dir"
+}
+
+bootstrap_admin_session() {
+    local name="tadmin"
+    if "$TMUX_BIN" has-session -t "$name" 2>/dev/null; then
+        echo "exists: $name"
+        return 0
+    fi
+
+    # 1:ops — bare shell for cluster admin work. Force a generous detached size so
+    # the cluster-window splits below get positive heights even if the first client
+    # later attaches from a small (e.g. 24-row) terminal.
+    "$TMUX_BIN" new-session  -d -x 250 -y 60 -s "$name" -c "$HOME" -n ops
+    # 2:agent — three side-by-side panes for parallel agents
+    "$TMUX_BIN" new-window      -t "$name:" -c "$HOME" -n agent
+    "$TMUX_BIN" split-window -h -t "$name:agent" -c "$HOME"
+    "$TMUX_BIN" split-window -h -t "$name:agent" -c "$HOME"
+    "$TMUX_BIN" select-layout -t "$name:agent" even-horizontal
+    "$TMUX_BIN" select-pane     -t "$name:agent.1"
+    # 3:mon — htop + a small disk/mem/load dashboard
+    "$TMUX_BIN" new-window      -t "$name:" -c "$HOME" -n mon
+    "$TMUX_BIN" send-keys       -t "$name:mon.1" 'htop 2>/dev/null || top' C-m
+    "$TMUX_BIN" split-window -h -t "$name:mon"  -c "$HOME"
+    "$TMUX_BIN" send-keys       -t "$name:mon.2" \
+        'watch -n 5 "echo === DISK ===; df -h ~ /tmp 2>/dev/null; echo; echo === MEM ===; free -h; echo; echo === LOAD ===; uptime"' C-m
+    # 4:edit — bare shell kept separate from ops
+    "$TMUX_BIN" new-window      -t "$name:" -c "$HOME" -n edit
+    # 5:cluster — Slurm state in 4 height-sized vertical stripes.
+    "$TMUX_BIN" new-window -t "$name:" -c "$HOME" -n cluster
+    local P_SINFO P_SQUEUE P_GPU P_CPU W_H L1 L2 L3
+    local H_SINFO=10 H_SQUEUE=25 H_GPU=12
+    P_SINFO=$("$TMUX_BIN" display-message -p -t "$name:cluster" '#{pane_id}')
+    W_H=$("$TMUX_BIN" display-message -p -t "$name:cluster" '#{window_height}')
+    L1=$((W_H - H_SINFO - 1))
+    L2=$((W_H - H_SINFO - H_SQUEUE - 2))
+    L3=$((W_H - H_SINFO - H_SQUEUE - H_GPU - 3))
+    # Never request a negative/too-small split (tmux errors "size too small").
+    L1=$(( L1 > 3 ? L1 : 3 )); L2=$(( L2 > 3 ? L2 : 3 )); L3=$(( L3 > 3 ? L3 : 3 ))
+    P_SQUEUE=$("$TMUX_BIN" split-window -v -P -F '#{pane_id}' -l "$L1" -t "$P_SINFO" -c "$HOME")
+    P_GPU=$("$TMUX_BIN"    split-window -v -P -F '#{pane_id}' -l "$L2" -t "$P_SQUEUE" -c "$HOME")
+    P_CPU=$("$TMUX_BIN"    split-window -v -P -F '#{pane_id}' -l "$L3" -t "$P_GPU"    -c "$HOME")
+    "$TMUX_BIN" send-keys -t "$P_SINFO"  'watch -n 30 "sinfo | colmajor 2"' C-m
+    "$TMUX_BIN" send-keys -t "$P_SQUEUE" 'watch -n 30 "squeue | colmajor 2"' C-m
+    "$TMUX_BIN" send-keys -t "$P_GPU"    'while true; do clear; gpustat; sleep 30; done' C-m
+    "$TMUX_BIN" send-keys -t "$P_CPU"    'watch -n 30 "cpustat | colmajor 3"' C-m
+    "$TMUX_BIN" select-window  -t "$name:ops"
+    echo "created: $name"
+}
+
+for name in "${!PROJECTS[@]}"; do
+    bootstrap_session "$name" "${PROJECTS[$name]}"
+done
+bootstrap_admin_session
+
+echo
+echo "--- tmux ls ---"
+"$TMUX_BIN" ls 2>/dev/null || echo "(no sessions)"
