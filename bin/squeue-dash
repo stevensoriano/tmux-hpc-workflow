@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Partition-pressure header + enriched squeue --me. Used by the top
+# pane of each project session's `queue` tmux window (via `watch`).
+set -u
+printf '%s   ' "$(date +'%a %Y-%m-%d %H:%M')"
+sinfo -h --summarize | awk '{printf "%-8s %s   ", $1, $4}'
+echo; echo
+# %30j (no dot) = left-justified, min 30 chars, no truncation — column
+# auto-expands if a job name is longer. (%.22j truncated, %-30j is rejected
+# by squeue's lowercase --format parser.)
+squeue --me --format='%.10i %.10P %30j %.2t %.10M %.12L %.4D %.5C %.7m %R'

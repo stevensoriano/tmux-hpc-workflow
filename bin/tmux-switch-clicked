@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# tmux-switch-clicked — invoked by the MouseDown1Status binding in ~/.tmux.conf.
+#
+# The session-tab strip (status-format[0]) tags each session's clickable range as
+# "S:<name>" so status-row clicks can be told apart from window-row clicks. tmux
+# passes that range value as $1 and the clicking client's name as $2. Strip the
+# "S:" tag and switch THAT client to the chosen session.
+#
+# Why a script (not an inline binding): tmux's #{s/^S://:...} format substitution
+# returns empty for this anchored pattern, and switch-client -t does not expand
+# #{...} in its target — so the prefix must be stripped at run time in the shell.
+set -uo pipefail
+
+arg="${1:-}"
+sess="${arg#S:}"          # strip the "S:" range tag -> bare session name
+[ -n "$sess" ] || exit 0  # empty/blank click: do nothing
+
+client="${2:-}"
+if [ -n "$client" ]; then
+  exec tmux switch-client -c "$client" -t "$sess"
+fi
+exec tmux switch-client -t "$sess"

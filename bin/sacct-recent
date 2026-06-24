@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Recent finished jobs for $USER, last 48h. Used by the bottom pane
+# of each project session's `queue` tmux window (via `watch`).
+#
+# Layout: End (completion time) column first so the user sees WHEN each
+# job finished, and so the rows are sortable by completion time. Sorted
+# reverse (newest finished at the top). Timestamp rewritten from ISO
+# (2026-05-27T14:49:57) → space-separated (2026-05-27 14:49:57) for
+# legibility, after the sort (sort still works because both forms sort
+# identically on a fixed-position character).
+#
+# --endtime is REQUIRED when --state is given — without it, sacct silently
+# returns an empty result set. Confirmed on this cluster's Slurm.
+
+set -u
+printf 'Finished in last 48h (%s):\n\n' "$(date +'%a %Y-%m-%d %H:%M')"
+
+sacct --user="$USER" -X --starttime now-48hours --endtime now \
+    --format=End,JobID,JobName%-30,State,Elapsed,MaxRSS,ReqMem,NCPUS,ExitCode \
+    --state=COMPLETED,FAILED,TIMEOUT,CANCELLED,OUT_OF_MEMORY,NODE_FAIL \
+  | awk 'NR<=2 {print; next} {print | "sort -r"}' \
+  | sed 's/^\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\)T/\1 /'

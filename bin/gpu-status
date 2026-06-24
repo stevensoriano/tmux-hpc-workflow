@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Output a one-line GPU summary for tmux status line. Silent if no local GPU.
+set -u
+CACHE="/tmp/gpu-status-${USER}.cache"
+TTL=10
+
+if [[ -f "$CACHE" ]] && [[ $(( $(date +%s) - $(stat -c %Y "$CACHE" 2>/dev/null || echo 0) )) -lt $TTL ]]; then
+    cat "$CACHE"
+    exit 0
+fi
+
+if ! command -v nvidia-smi >/dev/null 2>&1; then
+    : > "$CACHE"
+    exit 0
+fi
+
+out="$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null \
+    | awk 'NF{n++; s+=$1} END{ if(n>0) printf "GPU:%d%%", int(s/n) }')"
+
+printf '%s' "$out" > "$CACHE"
+printf '%s' "$out"

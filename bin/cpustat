@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# CPU compute-node summary — companion to the gpustat bash function in ~/.bashrc.
+# Shows nodes that DON'T carry GPUs, with allocation, memory, and users currently
+# running jobs on them. Designed to live in the tadmin cluster pane next to gpustat.
+
+USER_MAP=$(squeue -h -t R -o "%N|%u" 2>/dev/null | awk -F'|' '
+{ cmd="scontrol show hostnames \""$1"\" 2>/dev/null"
+  while ((cmd|getline n)>0) {
+    k=n SUBSEP $2
+    if (!(k in s)) { m[n]=m[n](m[n]?",":"")$2; s[k]=1 }
+  }
+  close(cmd) }
+END { for (n in m) print n"\t"m[n] }')
+
+# sinfo fields: %N node, %t state, %C cpus (alloc/idle/other/total),
+#               %G generic resources (gpu:... means GPU node — skip),
+#               %O cpu load, %m memory (MB)
+sinfo -N -o "%20N %10t %18C %25G %10O %10m" 2>/dev/null | awk -v um="$USER_MAP" '
+BEGIN { n=split(um,L,"\n"); for(i=1;i<=n;i++) if(L[i]!=""){split(L[i],p,"\t");u[p[1]]=p[2]} }
+NR==1 { printf "%-18s %-10s %-18s %-10s %-10s %s\n",
+               "NODE","STATE","CPUS A/I/O/T","LOAD","RAM(GB)","USERS"; next }
+$4 ~ /gpu:/ { next }
+{ printf "%-18s %-10s %-18s %-10s %-10s %s\n",
+         $1,$2,$3,$5,int($6/1024),(u[$1]!=""?u[$1]:"-") }'
