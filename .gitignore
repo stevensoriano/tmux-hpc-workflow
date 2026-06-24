@@ -1,0 +1,7 @@
+# Real runtime config (project names/paths/agent commands live here, outside git)
+config/projects.conf
+config/agents.conf
+# Editor / OS cruft
+*.swp
+*~
+.DS_Store
