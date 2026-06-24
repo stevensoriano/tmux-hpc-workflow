@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tmux cheat sheet — proj_a cluster workflow</title>
+<style>
+  :root {
+    --bg:        #282c34;
+    --bg-card:   #2c313c;
+    --bg-card-2: #3e4451;
+    --fg:        #abb2bf;
+    --fg-mute:   #828997;
+    --accent:    #61afef;
+    --green:     #98c379;
+    --yellow:    #e5c07b;
+    --red:       #e06c75;
+    --purple:    #c678dd;
+    --pink:      #e88abf;
+    --border:    #4b5263;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:        #eff1f5;
+      --bg-card:   #ffffff;
+      --bg-card-2: #e6e9ef;
+      --fg:        #4c4f69;
+      --fg-mute:   #6c6f85;
+      --accent:    #1e66f5;
+      --green:     #40a02b;
+      --yellow:    #df8e1d;
+      --red:       #d20f39;
+      --purple:    #8839ef;
+      --pink:      #ea76cb;
+      --border:    #ccd0da;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 70px; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  .container {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px 28px 80px;
+  }
+  header.top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    margin: -24px -28px 24px;
+  }
+  header.top .row {
+    max-width: 980px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+  }
+  header.top h1 {
+    font-size: 17px;
+    margin: 0;
+    margin-right: auto;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  header.top a {
+    color: var(--fg-mute);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    transition: background 0.1s, color 0.1s;
+  }
+  header.top a:hover {
+    background: var(--bg-card);
+    color: var(--fg);
+  }
+  h2 {
+    font-size: 22px;
+    margin: 36px 0 12px;
+    color: var(--accent);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2 .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg-card-2);
+    color: var(--fg-mute);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--fg); font-weight: 600; }
+  p { margin: 0 0 12px; }
+  p.lede { color: var(--fg-mute); font-size: 15px; }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 0 0 14px;
+  }
+  .card.callout {
+    border-left: 4px solid var(--yellow);
+    background: var(--bg-card-2);
+  }
+  .card.callout strong { color: var(--yellow); }
+  .card.callout.red { border-left-color: var(--red); }
+  .card.callout.red strong { color: var(--red); }
+  .card.callout.green { border-left-color: var(--green); }
+  .card.callout.green strong { color: var(--green); }
+  kbd {
+    display: inline-block;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 3px 7px;
+    margin: 0 1px;
+    background: var(--bg-card-2);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+  kbd.prefix {
+    background: color-mix(in srgb, var(--accent) 22%, var(--bg-card-2));
+    border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+    color: var(--accent);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  table th, table td {
+    text-align: left;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  table tr:last-child td { border-bottom: none; }
+  table th {
+    background: var(--bg-card-2);
+    color: var(--fg-mute);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  table td:first-child {
+    width: 34%;
+    white-space: nowrap;
+  }
+  table tr:hover td { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+  code {
+    font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 13px;
+    background: var(--bg-card-2);
+    color: var(--green);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  ol, ul { padding-left: 24px; margin: 0 0 12px; }
+  ol li, ul li { margin: 4px 0; }
+  .accent { color: var(--accent); }
+  .muted  { color: var(--fg-mute); }
+  .pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg-card-2);
+    color: var(--fg-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    vertical-align: middle;
+  }
+  .pill.green  { color: var(--green);  background: color-mix(in srgb, var(--green)  18%, var(--bg-card-2)); }
+  .pill.yellow { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 18%, var(--bg-card-2)); }
+  .pill.red    { color: var(--red);    background: color-mix(in srgb, var(--red)    18%, var(--bg-card-2)); }
+  .pill.purple { color: var(--purple); background: color-mix(in srgb, var(--purple) 18%, var(--bg-card-2)); }
+  .flow {
+    counter-reset: step;
+    list-style: none;
+    padding: 0;
+  }
+  .flow li {
+    position: relative;
+    padding: 10px 12px 10px 50px;
+    margin: 8px 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .flow li::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    color: var(--bg);
+    border-radius: 50%;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 720px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--fg-mute);
+    font-size: 13px;
+  }
+  @media print {
+    header.top { position: static; }
+    body { background: white; color: black; font-size: 11pt; }
+    .card, table { page-break-inside: avoid; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="top">
+  <div class="row">
+    <h1>tmux cheat sheet · proj_a cluster</h1>
+    <a href="#prefix">Prefix</a>
+    <a href="#shells">Shells</a>
+    <a href="#windows">Windows</a>
+    <a href="#panes">Panes</a>
+    <a href="#sessions">Sessions</a>
+    <a href="#admin">Admin</a>
+    <a href="#flow">Flow</a>
+    <a href="#copy">Copy</a>
+    <a href="#recover">Recovery</a>
+  </div>
+</header>
+
+<p class="lede">
+  Quick reference for the tmux workflow on <code>hpc-login</code>.
+  <strong>Project sessions:</strong> <span class="pill green">proj_a</span> <span class="pill green">proj_b</span> <span class="pill green">proj_c</span> <span class="pill green">sandbox</span> <span class="pill green">proj_d</span> <span class="pill green">proj_e</span> — each has 4 windows: <code>shell</code> <span class="muted">(two side-by-side panes)</span>, <code>agent</code> <span class="muted">(two side-by-side panes for parallel agents; <strong>proj_d</strong> has three)</span>, <code>queue</code> <span class="muted">(squeue dashboard on top, sacct recent history below)</span>, <code>logs</code>.
+  <br>
+  <strong>Admin session:</strong> <span class="pill purple">tadmin</span> — different layout for cluster management: <code>ops</code>, <code>agent</code> <span class="muted">(three side-by-side panes)</span>, <code>mon</code>, <code>edit</code>, <code>cluster</code>. See <a href="#admin">Admin</a>.
+  <br>
+</p>
+
+<h2 id="prefix">The prefix key <span class="badge">core concept</span></h2>
+
+<div class="card callout">
+  <p>Every binding starts with the <strong>prefix</strong>: <kbd class="prefix">F12</kbd>.</p>
+  <p>Tap it (release), then tap the next key. <em>Don't hold F12 down.</em></p>
+  <p>Status bar flashes when you've pressed it. If you're ever stuck inside a menu or popup, <kbd>Esc</kbd> or <kbd>q</kbd> always exits.</p>
+  <p class="muted" style="margin-bottom:0;">Shorthand: <code>F12 X</code> means "tap F12, release, tap X."</p>
+</div>
+
+<div class="card callout green">
+  <strong>Two no-prefix shortcuts.</strong> Faster than the prefix; use these constantly.
+  <ul style="margin:6px 0 0;">
+    <li><kbd>Shift</kbd>+<kbd>→</kbd> / <kbd>Shift</kbd>+<kbd>←</kbd> — cycle to next / previous window</li>
+    <li><kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> — move between panes</li>
+  </ul>
+</div>
+
+<h2 id="shells">Aliases from your shell <span class="badge">outside tmux</span></h2>
+
+<table>
+  <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>tproj_a</code></td><td>Attach to <code>proj_a</code> session (or create it if absent)</td></tr>
+    <tr><td><code>tproj_b</code></td><td>Attach to <code>proj_b</code> (project-b)</td></tr>
+    <tr><td><code>tproj_c</code></td><td>Attach to <code>proj_c</code> (project-c)</td></tr>
+    <tr><td><code>tsandbox</code></td><td>Attach to <code>sandbox</code> (sandbox)</td></tr>
+    <tr><td><code>tproj_d</code></td><td>Attach to <code>proj_d</code> (project-d)</td></tr>
+    <tr><td><code>tproj_e</code></td><td>Attach to <code>proj_e</code> (project-e)</td></tr>
+    <tr><td><code>tadmin</code></td><td>Attach to <code>tadmin</code> — cluster admin session <span class="pill purple">different layout</span></td></tr>
+    <tr><td><code>tls</code></td><td>List all sessions (<code>tmux ls</code>)</td></tr>
+    <tr><td><code>tmuxs</code></td><td>fzf sessionizer — jump to any project dir as a session</td></tr>
+    <tr><td><code>tdiag</code></td><td><strong>Diagnostic</strong> — prints client state, pane modes, active bindings <span class="pill yellow">use when keys feel broken</span></td></tr>
+  </tbody>
+</table>
+
+<h2 id="windows">Windows <span class="badge">second status row</span></h2>
+<p class="lede">The numbered list on the <strong>second status row</strong> (just below the session tab strip): <code>1:shell 2:agent 3:queue 4:logs</code>. These are the windows of <em>this</em> session; each fills the screen until you split it into panes.</p>
+
+<table>
+  <thead><tr><th>Keys</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>1</kbd> &hellip; <kbd>4</kbd></td><td>Jump to window N <span class="pill green">most-used</span></td></tr>
+    <tr><td><kbd>Shift</kbd>+<kbd>→</kbd> / <kbd>Shift</kbd>+<kbd>←</kbd></td><td>Next / previous window <span class="muted">(no prefix)</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>n</kbd> / <kbd>p</kbd></td><td>Next / previous window (prefix version)</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>l</kbd></td><td>Jump to last-visited window</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>c</kbd></td><td>Create a new window</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>,</kbd></td><td>Rename current window</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>&amp;</kbd></td><td>Kill current window <span class="muted">(asks first)</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>w</kbd></td><td>Visual list of all windows — arrows + <kbd>Enter</kbd></td></tr>
+  </tbody>
+</table>
+
+<p class="muted" style="margin-top:10px;">
+  In the status bar: <code>*</code> = current window, <code>-</code> = last-visited.
+</p>
+
+<h2 id="panes">Panes <span class="badge">splits inside one window</span></h2>
+
+<table>
+  <thead><tr><th>Keys</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>|</kbd></td><td>Split vertically <span class="muted">(left / right)</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>-</kbd></td><td>Split horizontally <span class="muted">(top / bottom)</span></td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>→</kbd> <kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd></td><td>Move between panes <span class="muted">(no prefix)</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>z</kbd></td><td><strong>Zoom</strong> — blow current pane fullscreen. Press again to un-zoom <span class="pill yellow">use this constantly</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>x</kbd></td><td>Kill current pane <span class="muted">(asks first)</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>q</kbd></td><td>Briefly flash pane numbers — useful in busy layouts</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>{</kbd> / <kbd>}</kbd></td><td>Swap current pane with previous / next</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>Space</kbd></td><td>Cycle preset layouts <span class="muted">(even-h, even-v, main-h, main-v, tiled)</span></td></tr>
+    <tr><td>Mouse-drag a border</td><td>Resize panes <span class="muted">(mouse is on)</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>H</kbd>/<kbd>J</kbd>/<kbd>K</kbd>/<kbd>L</kbd></td><td>Resize current pane left/down/up/right by 5 cells <span class="muted">(capital letters)</span></td></tr>
+  </tbody>
+</table>
+
+<div class="card callout" style="margin-top:14px;">
+  <strong>Zoom is the single most useful binding.</strong> You'll use <kbd class="prefix">F12</kbd> <kbd>z</kbd> constantly to focus on one agent then pop back out to your full monitoring layout.
+</div>
+
+<h2 id="sessions">Sessions <span class="badge">proj_a / proj_b / proj_c / sandbox / proj_d / proj_e / tadmin</span></h2>
+
+<table>
+  <thead><tr><th>Keys</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>Shift</kbd>+<kbd>↓</kbd></td><td><strong>Previous / next session</strong> <span class="muted">(no prefix)</span> — the vertical mirror of <kbd>Shift</kbd>+<kbd>←</kbd>/<kbd>→</kbd> (windows). Fastest way to flip between projects <span class="pill purple">custom</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>d</kbd></td><td><strong>Detach</strong> — drop back to your shell. Session keeps running <span class="pill green">essential</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>s</kbd></td><td>List sessions — arrows + <kbd>Enter</kbd> to switch</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>$</kbd></td><td>Rename current session</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>(</kbd> / <kbd>)</kbd></td><td>Previous / next session</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>f</kbd></td><td><strong>Sessionizer popup</strong> — fzf list of project dirs. Pick → creates the session if absent → attaches <span class="pill purple">custom</span></td></tr>
+    <tr><td><span class="muted">click a tab</span></td><td><strong>Session tab strip</strong> — click any session name on the top status row to switch to it <span class="pill purple">custom</span></td></tr>
+  </tbody>
+</table>
+
+<div class="card callout green" style="margin-top:14px;">
+  <strong>The session tab strip (top status row).</strong> Your status bar now has two rows. The <em>top</em> row is a persistent strip of <em>all</em> sessions — <code>proj_a │ proj_c │ … │ tadmin │ …</code> — with the one this client is attached to highlighted in blue. <strong>Click any name to jump straight to it</strong>; or use <kbd class="prefix">F12</kbd> <kbd>s</kbd> for the filterable popup. The <em>second</em> row is the normal bar (the current session's window tabs + HPC readouts). It's defined as <code>status-format[0]</code> / <code>status-format[1]</code> in <code>~/.tmux.conf</code>; to drop back to a single line, <code>set -g status on</code>.
+</div>
+
+<p style="margin-top:10px;">
+  To leave tmux entirely: <kbd class="prefix">F12</kbd> <kbd>d</kbd>. Sessions stay alive.
+  Come back with <code>tproj_a</code>, <code>tproj_b</code>, <code>tproj_c</code>, <code>tsandbox</code>, <code>tproj_d</code>, <code>tproj_e</code>, <code>tadmin</code> — or <code>tmux attach -t proj_a</code> directly.
+</p>
+
+<h2 id="admin">Admin session <span class="badge">tadmin — cluster management</span></h2>
+
+<p class="lede">
+  <code>tadmin</code> is the cross-cutting session for installing software, editing configs, driving agents through admin work, and watching cluster-wide state. Different layout from the project sessions because the tasks are different.
+</p>
+
+<div class="grid-2">
+  <div class="card">
+    <h3 style="margin-top:0;">1:ops <span class="pill green">daily driver</span></h3>
+    <p style="margin:0;">Full-pane bash. Where you run install commands, conda, pip, downloads. Keep your real work here so the monitoring windows don't get clobbered.</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0;">2:agent <span class="pill green">parallel agents</span></h3>
+    <p style="margin:0;">Two side-by-side panes, just like the project sessions — agents do the heavy lifting of admin work.
+      <br>· <kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>Alt</kbd>+<kbd>→</kbd> to jump between left/right pane
+      <br>· Run <code>agent</code> in one, <code>agent</code> (or a second <code>agent</code>) in the other
+    </p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0;">3:mon <span class="pill yellow">monitor</span></h3>
+    <p style="margin:0;">Split vertical:
+      <br>· <strong>left</strong>: <code>htop</code> (auto-launched, falls back to <code>top</code>)
+      <br>· <strong>right</strong>: <code>watch -n 5</code> showing disk (<code>df -h ~ /tmp</code>), memory (<code>free -h</code>), load (<code>uptime</code>)
+    </p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0;">4:edit <span class="pill purple">editor</span></h3>
+    <p style="margin:0;">Bare shell, kept separate so long vim/nvim sessions don't block your ops pane. Launch your editor of choice from here.</p>
+  </div>
+  <div class="card" style="grid-column: 1 / -1;">
+    <h3 style="margin-top:0;">5:cluster <span class="pill purple">global view (vertical stripes)</span></h3>
+    <p style="margin:0;">Complete cluster state in four full-width stripes (top to bottom). Sized so all data fits without truncation — the cluster has 100+ compute nodes and 40+ active jobs at any time, which would overflow a typical pane in single-column form.
+    </p>
+    <table style="margin-top:10px;">
+      <thead><tr><th>Stripe</th><th>Command</th><th>What it shows</th></tr></thead>
+      <tbody>
+        <tr><td><strong>1 (top)</strong></td><td><code>watch sinfo | colmajor 2</code></td><td>Partition summary — state &amp; node lists, 2-column flow</td></tr>
+        <tr><td><strong>2</strong></td><td><code>watch squeue | colmajor 2</code></td><td>Every user's jobs (global queue) — 2-column flow, fits 50+ jobs</td></tr>
+        <tr><td><strong>3</strong></td><td><code>gpustat</code> loop <span class="muted">(bash fn from ~/.bashrc)</span></td><td>GPU compute nodes — type, count, RAM, users; single column (only ~10 nodes)</td></tr>
+        <tr><td><strong>4 (bottom)</strong></td><td><code>watch cpustat | colmajor 3</code></td><td>CPU compute nodes — alloc/idle, load, RAM, users; 3-column flow, fits 100+ nodes</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card callout" style="margin-top:14px;">
+  <strong>Multi-column flow via <code>~/bin/colmajor</code>.</strong> Pipe any line-list through <code>colmajor N</code> to flow it into N column-major columns (down first, then across). Used here so the cluster window can show all 100+ nodes and 40+ jobs without scrolling. Don't substitute <code>pr -T -N</code> — it re-encodes runs of spaces as TAB chars that don't align with column padding, rendering the output garbled.
+</div>
+
+<div class="card callout" style="margin-top:10px;">
+  <strong>Difference from project sessions.</strong> Project sessions (<code>proj_a</code>, <code>proj_b</code>, …) show <em>your</em> queue (<code>squeue --me</code>) and your build logs. <code>tadmin</code> shows the <em>global</em> queue, all nodes, the GPU map, AND the CPU map for the whole cluster. Don't mix them up.
+</div>
+
+<div class="card callout green" style="margin-top:10px;">
+  <strong>If the session ever dies</strong> (server restart, kill), just run <code>tadmin</code> again — the alias auto-runs <code>~/bin/tmux-bootstrap</code> to rebuild it from scratch with all four windows wired up. Idempotent and safe to re-run.
+</div>
+
+<h2 id="custom">Your custom bindings <span class="badge">~/.tmux.conf</span></h2>
+
+<table>
+  <thead><tr><th>Keys</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>a</kbd></td><td><strong>Agent launcher menu</strong> — pick <code>agent</code> or <code>agent</code>, vertical or horizontal split <span class="pill purple">custom</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>f</kbd></td><td>fzf sessionizer popup</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>Q</kbd></td><td><strong>Catch-all fzf menu</strong> — switch session/window/pane, kill, swap. <em>Use when you can't remember a binding</em> <span class="pill yellow">forgot something?</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>r</kbd></td><td>Reload <code>~/.tmux.conf</code> after editing</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>k</kbd></td><td><strong>Clear screen</strong> — Ctrl+L equivalent (synthesized inside tmux so FastX can't eat it) <span class="pill purple">custom</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>K</kbd></td><td><strong>Clear screen + scrollback</strong> — clears visible AND wipes tmux's scrollback buffer for this pane <span class="pill purple">custom</span></td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>Esc</kbd></td><td><strong>Panic exit</strong> — force-exits any pane mode (copy/view/etc.) <span class="pill red">unstick</span></td></tr>
+    <tr><td>Hold <kbd>F12</kbd> then <kbd>C-s</kbd></td><td>Save current layout (resurrect)</td></tr>
+    <tr><td>Hold <kbd>F12</kbd> then <kbd>C-r</kbd></td><td>Restore last saved layout</td></tr>
+  </tbody>
+</table>
+
+<h2 id="flow">A typical "do work" flow <span class="badge">walkthrough</span></h2>
+
+<ol class="flow">
+  <li><code>tproj_a</code> → you land in window 1 (<code>shell</code>) at <code>~/project-a</code>.</li>
+  <li><kbd class="prefix">F12</kbd> <kbd>2</kbd> → switch to the <code>agent</code> window — <strong>already split into two side-by-side panes</strong>, ready for two parallel agents.
+    <ul>
+      <li><kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>Alt</kbd>+<kbd>→</kbd> to jump between the left and right agent pane</li>
+      <li>Run <code>agent</code> in one pane and <code>agent</code> (or a second <code>agent</code>) in the other</li>
+      <li><kbd class="prefix">F12</kbd> <kbd>z</kbd> to zoom into one pane fullscreen; press again to pop back to the side-by-side view</li>
+    </ul>
+  </li>
+  <li><kbd class="prefix">F12</kbd> <kbd>3</kbd> → <code>queue</code> window. <code>watch squeue --me</code> is already running. Glance, leave it.</li>
+  <li><kbd class="prefix">F12</kbd> <kbd>4</kbd> → <code>logs</code> window. Run <code>tail -f Run.log</code> on whatever you care about.</li>
+  <li>Need a <em>third</em> agent for the same project? <kbd class="prefix">F12</kbd> <kbd>2</kbd> → <kbd class="prefix">F12</kbd> <kbd>-</kbd> (horizontal split) → run a third <code>agent</code> in the new pane.</li>
+  <li>Need a second project? <kbd class="prefix">F12</kbd> <kbd>d</kbd> to detach, <code>tproj_b</code> to attach to project-b. Both sessions (and all their agents) keep running concurrently.</li>
+</ol>
+
+<h2 id="copy">Copy mode <span class="badge">scrollback + select text</span></h2>
+
+<div class="card callout green" style="margin-bottom:14px;">
+  <strong>Mouse-wheel scrolls the pane's scrollback.</strong> In a shell or TUI app that doesn't capture the mouse (Agent Code, Agent, plain bash), wheel-up enters copy-mode and scrolls back; wheel-down scrolls forward. Mouse-aware apps (<code>vim</code>, <code>less</code>, <code>watch</code>, <code>htop</code>) get the wheel events forwarded and scroll their own buffers. Press <kbd>q</kbd> or <kbd>Esc</kbd> to exit copy-mode when you're done browsing the scrollback. The red <strong>COPY-MODE</strong> tag in the status bar makes it obvious when you're in copy-mode.
+</div>
+
+<div class="card callout red" style="margin-bottom:14px;">
+  <strong>You'll know when you're in copy-mode:</strong> a red <strong>COPY-MODE</strong> tag appears in the top-left status bar next to the session name. The mode-line on the active pane turns bold yellow.
+</div>
+
+<table>
+  <thead><tr><th>Keys</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>[</kbd></td><td>Enter copy-mode</td></tr>
+    <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>PgUp</kbd> <kbd>PgDn</kbd></td><td>Navigate (vi mode)</td></tr>
+    <tr><td><kbd>/</kbd> <em>text</em> <kbd>Enter</kbd></td><td>Search backward</td></tr>
+    <tr><td><kbd>n</kbd> / <kbd>N</kbd></td><td>Next / previous match</td></tr>
+    <tr><td><kbd>v</kbd></td><td>Start selection at cursor</td></tr>
+    <tr><td><kbd>y</kbd></td><td>Copy selection — also lands in your system clipboard (via FastX X11)</td></tr>
+    <tr><td><kbd>q</kbd> or <kbd>Esc</kbd></td><td>Exit copy-mode</td></tr>
+    <tr><td><kbd class="prefix">F12</kbd> <kbd>Esc</kbd></td><td>Panic exit — works even when you can't tell what mode you're in</td></tr>
+  </tbody>
+</table>
+
+<div class="card callout green" style="margin-top:14px;">
+  <strong>TUI apps that emit OSC 52 (an agent, Helix, modern Neovim) copy straight to your system clipboard.</strong> In an agent, pressing <kbd>y</kbd> on a content block sends an OSC&nbsp;52 escape sequence; tmux's <code>set-clipboard on</code> + <code>allow-passthrough on</code> + <code>terminal-features ",*:clipboard"</code> propagate it through to FastX, which updates your laptop's clipboard. Paste anywhere normally.
+  <p style="margin: 0.6rem 0 0;"><strong>Required FastX client-side setting (one-time toggle):</strong> in the FastX session settings, enable <em>"Applications in terminal may access clipboard"</em>. Without it, FastX silently discards the OSC&nbsp;52 sequence and your <kbd>y</kbd> press has no visible effect outside the TUI.</p>
+</div>
+
+<h2 id="respawn">Cluster shutdown → respawn <span class="badge">disaster recovery</span></h2>
+
+<div class="card callout green" style="margin-bottom:14px;">
+  <strong>Your whole tmux world is recoverable from disk.</strong> The running server dies with the node (its socket lives in node-local <code>/tmp</code>), but every artifact needed to rebuild it — <code>~/.tmux.conf</code>, <code>~/bin/tmux-bootstrap</code>, the resurrect save, and all your working dirs — lives on <strong>a shared parallel filesystem</strong> (<code>shared storage</code>), which survives the shutdown. Two rebuild paths below: <strong>bootstrap</strong> (clean, live dashboards) or <strong>resurrect restore</strong> (exact cwds + scrollback).
+</div>
+
+<div class="card callout red" style="margin-bottom:14px;">
+  <strong>Before you power down: take a fresh save.</strong> Continuum auto-save is intentionally OFF, so the snapshot only reflects your <em>last manual save</em>. Capture the latest layout with <kbd class="prefix">F12</kbd> <kbd>C-s</kbd> (or <code>tmux run-shell '~/.tmux/plugins/tmux-resurrect/scripts/save.sh'</code>). The save writes <code>~/.tmux/resurrect/last</code> + <code>pane_contents.tar.gz</code> (layout + scrollback for every pane).
+</div>
+
+<p class="lede">When the cluster is back and you've opened a <strong>new</strong> FastX session:</p>
+
+<ol class="flow">
+  <li><strong>Confirm DISPLAY auto-healed.</strong> Open one fresh pane and run <code>echo $DISPLAY</code> (expect <code>:&lt;n&gt;</code>, not <code>hpc-login:111</code>) and <code>xset q</code>. Every interactive shell sources <code>~/bin/fastx-display.sh</code>, so new panes auto-point at the live FastX session and GUI launches (e.g. an X11 application) work.</li>
+  <li><strong>Rebuild — pick ONE:</strong>
+    <ul>
+    </ul>
+  </li>
+  <li><strong>Working dirs</strong> (Path A only): <code>cd</code> the 5 shell panes back to their case dirs — listed in <code>~/tmux-snapshots/2026-06-08-pre-shutdown.md</code>.</li>
+  <li><strong>Resume agents:</strong> in each project dir, <code>agent --continue</code> (most recent) or <code>agent --resume</code> (pick). Transcripts persist on disk independent of tmux — nothing is lost.</li>
+  <li><strong>Stale-DISPLAY panes</strong> (pre-existing or Path-B restored): <code>source ~/bin/fastx-display.sh</code> in that pane. Optional: <code>tmux setenv -gu DISPLAY; tmux setenv -gu XAUTHORITY</code>.</li>
+</ol>
+
+<div class="card callout" style="margin-top:14px;">
+  <strong>⚠ Do not whitelist <code>sbatch</code> in <code>@resurrect-processes</code>.</strong> The save can contain an <code>sbatch --chdir=…</code> pane; whitelisting it would auto-resubmit a Slurm job on every restore. Leave it to come back as an idle shell.
+</div>
+
+<h2 id="recover">When something feels wrong <span class="badge">recovery</span></h2>
+
+<table>
+  <thead><tr><th>Situation</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>"Stuck inside a menu / popup"</td><td><kbd>Esc</kbd> or <kbd>q</kbd></td></tr>
+    <tr><td>"I see <code>COPY-MODE</code> in the status bar"</td><td><kbd>q</kbd> or <kbd>Esc</kbd> — or <kbd class="prefix">F12</kbd> <kbd>Esc</kbd> as panic key</td></tr>
+    <tr><td>"Navigation keys feel broken"</td><td>Run <code>tdiag</code> in any shell — it tells you whether you're in copy-mode, prefix-pending, or healthy</td></tr>
+    <tr><td>"I detached by accident"</td><td><code>tmux attach</code> or <code>tproj_a</code>/etc.</td></tr>
+    <tr><td>"I closed the gnome-terminal tab"</td><td>tmux sessions are still alive — open a new tab, <code>tproj_a</code> puts you right back</td></tr>
+    <tr><td>"What sessions exist?"</td><td><code>tls</code> <span class="muted">(outside tmux)</span> or <kbd class="prefix">F12</kbd> <kbd>s</kbd> <span class="muted">(inside)</span></td></tr>
+    <tr><td>"Kill an entire session"</td><td><code>tmux kill-session -t &lt;name&gt;</code></td></tr>
+    <tr><td>"Edited <code>~/.tmux.conf</code>, want it to take effect"</td><td><kbd class="prefix">F12</kbd> <kbd>r</kbd></td></tr>
+    <tr><td>"<kbd>Ctrl</kbd>+<kbd>L</kbd> doesn't clear the screen"</td><td><kbd class="prefix">F12</kbd> <kbd>k</kbd> — FastX eats <kbd>Ctrl</kbd>+<kbd>L</kbd>, this synthesizes it inside tmux</td></tr>
+    <tr><td>"Want to wipe scrollback too"</td><td><kbd class="prefix">F12</kbd> <kbd>K</kbd> — clear screen + drop scrollback buffer</td></tr>
+    <tr><td>"<code>tadmin</code> died, want it back"</td><td>Just run <code>tadmin</code> — alias auto-bootstraps the full 4-window layout</td></tr>
+    <tr><td>"Cluster is shutting down / rebooting"</td><td>Save first (<kbd class="prefix">F12</kbd> <kbd>C-s</kbd>), then after reboot rebuild via <a href="#respawn">Cluster shutdown → respawn</a></td></tr>
+    <tr><td>"Forgot a binding"</td><td><kbd class="prefix">F12</kbd> <kbd>Q</kbd> — catch-all fzf menu</td></tr>
+    <tr><td>"Agent / TUI <kbd>y</kbd> copy isn't reaching my laptop clipboard"</td><td>Check the FastX session setting <em>"Applications in terminal may access clipboard"</em>; verify tmux side with <code>tmux show-options -s set-clipboard</code> (should be <code>on</code>)</td></tr>
+  </tbody>
+</table>
+
+<div class="card callout" style="margin-top:24px;">
+  <strong>Why F12 instead of the default Ctrl+B?</strong> FastX/gnome-terminal in this setup eats every Ctrl-modifier combination before it reaches tmux. We proved it: <kbd>Shift</kbd>+<kbd>→</kbd> worked (no prefix needed) but every <kbd>Ctrl</kbd>+<kbd>X</kbd> binding failed. F12 is a pure single keystroke with no modifier — nothing upstream intercepts it.
+</div>
+
+<footer>
+  Generated for the proj_a cluster workflow · tmux 3.5a · home-built in <code>~/opt/tmux</code> · config at <code>~/.tmux.conf</code> · helpers in <code>~/bin/</code> (<code>tmux-bootstrap</code>, <code>tmux-sessionizer</code>, <code>tmux-diag</code>, <code>slurm-status</code>, <code>gpu-status</code>)
+  2026-05-26 — tmux clipboard via OSC 52 enabled (<code>set-clipboard on</code> + <code>allow-passthrough on</code> + <code>terminal-features ",*:clipboard"</code>) so an agent's <kbd>y</kbd> copy binding (and any other TUI emitting OSC52) updates the system clipboard end-to-end through FastX.<br>
+  2026-05-24 — added <code>proj_e</code> project session (<code>tproj_e</code> alias → <code>~/project-e</code>); <code>proj_d</code> agent window now has 3 panes.<br>
+  2026-05-23 — added <code>tadmin</code> session (5 windows: ops/agent/mon/edit/cluster), <code>cpustat</code>+<code>colmajor</code> companions to <code>gpustat</code>, cluster window restructured to vertical stripes with multi-column flow so 100+ nodes &amp; 40+ jobs fit without truncation, <kbd>F12</kbd>&nbsp;<kbd>k</kbd>/<kbd>K</kbd> clear-screen bindings, mouse-wheel restored to scroll-into-copy-mode (was breaking scroll in Agent Code / Agent panes).
+</footer>
+
+</div>
+</body>
+</html>
