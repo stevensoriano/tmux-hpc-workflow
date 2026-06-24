@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Build the prefix-a "spawn agent" menu from agents.conf.
+# Each AGENTS entry "Label|command" yields vertical + horizontal split options.
+set -u
+
+TMUX_BIN="${TMUX_BIN:-$(command -v tmux || echo tmux)}"
+CONFIG_DIR="${TMUX_HPC_CONFIG_DIR:-$HOME/.config/tmux-hpc-workflow}"
+
+AGENTS=()
+if [[ -r "$CONFIG_DIR/agents.conf" ]]; then
+    # shellcheck disable=SC1091
+    source "$CONFIG_DIR/agents.conf"
+fi
+[[ ${#AGENTS[@]} -eq 0 ]] && AGENTS=("shell|bash")
+
+# Mnemonic keys for menu items (vertical uses lowercase, horizontal uppercase-ish).
+keys=(a s d f g h j k l z x c v b n m)
+args=()
+i=0
+for entry in "${AGENTS[@]}"; do
+    label="${entry%%|*}"
+    cmd="${entry#*|}"
+    kv="${keys[$(( i % ${#keys[@]} ))]}"; i=$((i+1))
+    kh="${keys[$(( i % ${#keys[@]} ))]}"; i=$((i+1))
+    args+=( "$label (vertical split)"   "$kv" "split-window -h \"$cmd\"" )
+    args+=( "$label (horizontal split)" "$kh" "split-window -v \"$cmd\"" )
+done
+
+"$TMUX_BIN" display-menu -T "#[align=centre]Spawn agent in new pane" -x C -y C "${args[@]}"
