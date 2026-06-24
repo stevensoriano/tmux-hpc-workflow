@@ -1,0 +1,8 @@
+# tmux-hpc-workflow — "spawn agent" menu (prefix + a).
+# Copy to:  ${TMUX_HPC_CONFIG_DIR:-$HOME/.config/tmux-hpc-workflow}/agents.conf
+# Each entry: "Label|command"  — command runs in a new split. git-ignored in-repo.
+AGENTS=(
+  "shell|bash"
+  "editor|${EDITOR:-vi}"
+  "agent|your-agent-command"
+)

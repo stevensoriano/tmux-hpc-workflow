@@ -1,0 +1,24 @@
+# tmux-hpc-workflow — project list.
+# Copy to:  ${TMUX_HPC_CONFIG_DIR:-$HOME/.config/tmux-hpc-workflow}/projects.conf
+# (install.sh seeds it for you). Sourced by tmux-bootstrap, tmux-sessionizer,
+# and shell/aliases.sh. This file is git-ignored when placed in the repo.
+
+# session name -> project directory
+declare -A PROJECTS=(
+  [proj_a]="$HOME/work/project-a"
+  [proj_b]="$HOME/work/project-b"
+  [proj_c]="$HOME/work/project-c"
+  [sandbox]="$HOME/work/sandbox"
+  [proj_d]="$HOME/work/project-d"
+  [proj_e]="$HOME/work/project-e"
+)
+
+# optional: agent-window pane count per session (default 2)
+declare -A AGENT_PANES=(
+  [proj_d]=3
+)
+
+# optional: extra dirs exposed in the fzf sessionizer (beyond PROJECTS dirs)
+EXTRA_ROOTS=(
+  "$HOME/work/tools"
+)
