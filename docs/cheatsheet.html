@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>tmux cheat sheet — proj_a cluster workflow</title>
+<title>tmux cheat sheet — HPC cluster workflow</title>
 <style>
   :root {
     --bg:        #282c34;
@@ -259,7 +259,7 @@
 
 <header class="top">
   <div class="row">
-    <h1>tmux cheat sheet · proj_a cluster</h1>
+    <h1>tmux cheat sheet · HPC cluster</h1>
     <a href="#prefix">Prefix</a>
     <a href="#shells">Shells</a>
     <a href="#windows">Windows</a>
@@ -518,9 +518,11 @@
   <li><strong>Confirm DISPLAY auto-healed.</strong> Open one fresh pane and run <code>echo $DISPLAY</code> (expect <code>:&lt;n&gt;</code>, not <code>hpc-login:111</code>) and <code>xset q</code>. Every interactive shell sources <code>~/bin/fastx-display.sh</code>, so new panes auto-point at the live FastX session and GUI launches (e.g. an X11 application) work.</li>
   <li><strong>Rebuild — pick ONE:</strong>
     <ul>
+      <li><strong>Bootstrap path:</strong> run <code>tmux-bootstrap</code> (or the <code>tadmin</code> alias) to recreate the project + admin sessions from scratch, then attach. Clean skeleton — running programs are not restored.</li>
+      <li><strong>Resurrect path:</strong> if you saved a layout with <kbd class="prefix">F12</kbd> <kbd>C-s</kbd>, restore it with <kbd class="prefix">F12</kbd> <kbd>C-r</kbd> (tmux-resurrect) to bring back the session/window/pane layout and working dirs.</li>
     </ul>
   </li>
-  <li><strong>Working dirs</strong> (Path A only): <code>cd</code> the 5 shell panes back to their case dirs — listed in <code>~/tmux-snapshots/2026-06-08-pre-shutdown.md</code>.</li>
+  <li><strong>Working dirs</strong> (Path A only): <code>cd</code> the 5 shell panes back to their case dirs — listed in your saved snapshot/runbook.</li>
   <li><strong>Resume agents:</strong> in each project dir, <code>agent --continue</code> (most recent) or <code>agent --resume</code> (pick). Transcripts persist on disk independent of tmux — nothing is lost.</li>
   <li><strong>Stale-DISPLAY panes</strong> (pre-existing or Path-B restored): <code>source ~/bin/fastx-display.sh</code> in that pane. Optional: <code>tmux setenv -gu DISPLAY; tmux setenv -gu XAUTHORITY</code>.</li>
 </ol>
@@ -556,7 +558,7 @@
 </div>
 
 <footer>
-  Generated for the proj_a cluster workflow · tmux 3.5a · home-built in <code>~/opt/tmux</code> · config at <code>~/.tmux.conf</code> · helpers in <code>~/bin/</code> (<code>tmux-bootstrap</code>, <code>tmux-sessionizer</code>, <code>tmux-diag</code>, <code>slurm-status</code>, <code>gpu-status</code>)
+  Generated for the HPC cluster workflow · tmux 3.5a · home-built in <code>~/opt/tmux</code> · config at <code>~/.tmux.conf</code> · helpers in <code>~/bin/</code> (<code>tmux-bootstrap</code>, <code>tmux-sessionizer</code>, <code>tmux-diag</code>, <code>slurm-status</code>, <code>gpu-status</code>)
   2026-05-26 — tmux clipboard via OSC 52 enabled (<code>set-clipboard on</code> + <code>allow-passthrough on</code> + <code>terminal-features ",*:clipboard"</code>) so an agent's <kbd>y</kbd> copy binding (and any other TUI emitting OSC52) updates the system clipboard end-to-end through FastX.<br>
   2026-05-24 — added <code>proj_e</code> project session (<code>tproj_e</code> alias → <code>~/project-e</code>); <code>proj_d</code> agent window now has 3 panes.<br>
   2026-05-23 — added <code>tadmin</code> session (5 windows: ops/agent/mon/edit/cluster), <code>cpustat</code>+<code>colmajor</code> companions to <code>gpustat</code>, cluster window restructured to vertical stripes with multi-column flow so 100+ nodes &amp; 40+ jobs fit without truncation, <kbd>F12</kbd>&nbsp;<kbd>k</kbd>/<kbd>K</kbd> clear-screen bindings, mouse-wheel restored to scroll-into-copy-mode (was breaking scroll in Agent Code / Agent panes).

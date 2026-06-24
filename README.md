@@ -52,6 +52,9 @@ Full key reference: [`docs/cheatsheet.html`](docs/cheatsheet.html).
 These files live outside the repo and are never tracked, so your real project
 names and tools stay private.
 
+- **Bin dir** — overriding `TMUX_HPC_BIN_DIR` to a dir other than `~/bin` also
+  requires editing the `~/bin/` helper paths hardcoded in `tmux.conf`.
+
 ## Dependencies
 
 tmux >= 3.4, bash >= 4.4, git, fzf; optional Slurm, htop, and xsel (X11 clipboard). See
