@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# fzf-driven jump-to-project session creator/attacher.
+# Usage: tmux-sessionizer [path]   — if path given, skip fzf.
+# Inside tmux:  bound to prefix + f (display-popup).  Outside: creates+attaches.
+# Roots come from projects.conf (PROJECTS values + EXTRA_ROOTS).
+set -u
+
+TMUX_BIN="${TMUX_BIN:-$(command -v tmux || echo tmux)}"
+FZF_BIN="${FZF_BIN:-$(command -v fzf || echo fzf)}"
+CONFIG_DIR="${TMUX_HPC_CONFIG_DIR:-$HOME/.config/tmux-hpc-workflow}"
+
+declare -A PROJECTS=()
+EXTRA_ROOTS=()
+if [[ -r "$CONFIG_DIR/projects.conf" ]]; then
+    # shellcheck disable=SC1091
+    source "$CONFIG_DIR/projects.conf"
+fi
+
+roots=()
+for p in "${PROJECTS[@]}"; do roots+=("$p"); done
+for r in "${EXTRA_ROOTS[@]}"; do roots+=("$r"); done
+
+if [[ $# -eq 1 ]]; then
+    selected="$1"
+else
+    candidates=()
+    for r in "${roots[@]}"; do
+        [[ -d "$r" ]] && candidates+=("$r")
+    done
+    if [[ ${#candidates[@]} -eq 0 ]]; then
+        echo "no candidate project dirs found (check $CONFIG_DIR/projects.conf)"
+        exit 1
+    fi
+    selected="$(printf '%s\n' "${candidates[@]}" | "$FZF_BIN" --prompt='session > ' --height=100%)"
+fi
+
+[[ -z "${selected:-}" ]] && exit 0
+[[ ! -d "$selected" ]] && { echo "not a directory: $selected"; exit 1; }
+
+name="$(basename "$selected" | tr '.' '_')"
+
+if ! "$TMUX_BIN" has-session -t "$name" 2>/dev/null; then
+    "$TMUX_BIN" new-session -d -s "$name" -c "$selected" -n shell
+    "$TMUX_BIN" new-window     -t "$name:" -c "$selected" -n agent
+    "$TMUX_BIN" split-window -h -t "$name:agent" -c "$selected"
+    "$TMUX_BIN" select-pane   -t "$name:agent.1"
+    "$TMUX_BIN" new-window     -t "$name:" -c "$selected" -n queue \
+        "watch -n 30 squeue --me"
+    "$TMUX_BIN" new-window     -t "$name:" -c "$selected" -n logs
+    "$TMUX_BIN" select-window -t "$name:shell"
+fi
+
+if [[ -n "${TMUX:-}" ]]; then
+    "$TMUX_BIN" switch-client -t "$name"
+else
+    "$TMUX_BIN" attach-session -t "$name"
+fi
