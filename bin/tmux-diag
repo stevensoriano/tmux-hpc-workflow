@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# tmux navigation diagnostics — run outside or inside tmux when keys "don't work".
+# Read-only: prints clients, sessions, and per-pane mode/cmd state.
+set -u
+T="${TMUX_BIN:-$(command -v tmux || echo tmux)}"
+
+if ! "$T" list-sessions >/dev/null 2>&1; then
+    echo "tmux server is not running."
+    exit 0
+fi
+
+echo "=== clients (look for prefix-pending=1 → you're mid-prefix; key_table other than 'root' → in a sub-mode) ==="
+"$T" list-clients -F "tty=#{client_tty} session=#{client_session} key_table=#{client_key_table} prefix-pending=#{client_prefix} term=#{client_termname} size=#{client_width}x#{client_height} flags=#{client_flags}"
+
+echo
+echo "=== sessions ==="
+"$T" list-sessions -F "#{session_name}: #{session_windows} windows #{?session_attached,(attached),}"
+
+echo
+echo "=== panes (mode=copy-mode means you're trapped — press q or Esc to exit) ==="
+"$T" list-panes -a -F "#{session_name}:#{window_index}:#{window_name}.#{pane_index} active=#{?window_active,Y,N}/#{?pane_active,Y,N} mode=#{?pane_in_mode,#{pane_mode},none} cmd=#{pane_current_command}"
+
+echo
+echo "=== window-switch bindings under prefix (sanity check) ==="
+"$T" list-keys -T prefix | grep -E "^bind-key +-T prefix +([0-9]|n|p|l) " | head -15

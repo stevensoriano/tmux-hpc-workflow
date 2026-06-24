@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Print export commands to refresh DISPLAY + XAUTHORITY to the current
+# live FastX session on this host. Use: eval "$(~/bin/fastx-display)"
+#
+# Why: FastX sessions disconnect/reconnect, getting a new $DISPLAY each
+# time. tmux panes started under an older session still have the old
+# (now-dead) $DISPLAY exported, so GUI apps launched from them fail
+# silently. This helper finds the newest live FastX session and outputs
+# the export lines to fix the calling shell.
+
+set -u
+# Current host's FastX session dir; override via FASTX_SESSIONS_DIR / FASTX_HOST.
+SESSIONS_DIR="${FASTX_SESSIONS_DIR:-$HOME/.fastx_server/${FASTX_HOST:-$(hostname -f)}/sessions}"
+[ -d "$SESSIONS_DIR" ] || SESSIONS_DIR="$(ls -dt "$HOME/.fastx_server"/*/sessions 2>/dev/null | head -1)"
+
+latest=$(ls -dt "$SESSIONS_DIR"/FX3-*/ 2>/dev/null | head -1)
+if [ -z "$latest" ] || [ ! -d "$latest" ]; then
+    echo "echo 'fastx-display: no FastX session dir in $SESSIONS_DIR' >&2; false"
+    exit 1
+fi
+
+disp=$(tr -d '\r\n' < "$latest/display" 2>/dev/null)
+auth="${latest%/}/authority"
+
+if [ -z "$disp" ] || [ ! -r "$auth" ]; then
+    echo "echo 'fastx-display: malformed FastX session at $latest' >&2; false"
+    exit 1
+fi
+
+# Sanity-check the display actually responds before recommending it.
+if ! DISPLAY=":$disp" XAUTHORITY="$auth" timeout 3 xdpyinfo >/dev/null 2>&1; then
+    echo "echo 'fastx-display: display :$disp not responding (session may be stopped)' >&2; false"
+    exit 1
+fi
+
+echo "export DISPLAY=:$disp"
+echo "export XAUTHORITY=$auth"
