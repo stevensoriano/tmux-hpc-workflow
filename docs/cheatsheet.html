@@ -476,7 +476,8 @@
 <h2 id="copy">Copy mode <span class="badge">scrollback + select text</span></h2>
 
 <div class="card callout green" style="margin-bottom:14px;">
-  <strong>Mouse-wheel scrolls the pane's scrollback.</strong> In a shell or TUI app that doesn't capture the mouse (Agent Code, Agent, plain bash), wheel-up enters copy-mode and scrolls back; wheel-down scrolls forward. Mouse-aware apps (<code>vim</code>, <code>less</code>, <code>watch</code>, <code>htop</code>) get the wheel events forwarded and scroll their own buffers. Press <kbd>q</kbd> or <kbd>Esc</kbd> to exit copy-mode when you're done browsing the scrollback. The red <strong>COPY-MODE</strong> tag in the status bar makes it obvious when you're in copy-mode.
+  <strong>Mouse-wheel scrolls the pane's scrollback.</strong> In a plain shell (no mouse capture), wheel-up enters copy-mode and scrolls back; wheel-down scrolls forward — press <kbd>q</kbd> or <kbd>Esc</kbd> to exit (the red <strong>COPY-MODE</strong> tag shows when you're in it). Mouse-aware apps (<code>vim</code>, <code>less</code>, <code>htop</code>, and modern agent TUIs — Agent Code / Agent now set <code>mouse_any_flag=1</code>) get the wheel forwarded and scroll their own buffers.
+  <p style="margin: 0.6rem 0 0;"><strong>Drag to select, even inside mouse-grabbing TUIs.</strong> A left-drag always starts a tmux selection that auto-copies to the clipboard on release — so highlighting text inside an agent works cleanly. Without this, the agent grabs the drag and its mouse-tracking codes (<code>ESC[&lt;…M</code>) dump as "character garbage" into the pane. Single-click and wheel still reach the app; only the app's own mouse-<em>drag</em> is given up (<code>F12 :</code> then <code>set -g mouse off</code> to get it back).</p>
 </div>
 
 <div class="card callout red" style="margin-bottom:14px;">
@@ -491,15 +492,16 @@
     <tr><td><kbd>/</kbd> <em>text</em> <kbd>Enter</kbd></td><td>Search backward</td></tr>
     <tr><td><kbd>n</kbd> / <kbd>N</kbd></td><td>Next / previous match</td></tr>
     <tr><td><kbd>v</kbd></td><td>Start selection at cursor</td></tr>
-    <tr><td><kbd>y</kbd></td><td>Copy selection — also lands in your system clipboard (via FastX X11)</td></tr>
+    <tr><td><kbd>y</kbd></td><td>Copy selection → piped through <code>xsel</code> to the X11 CLIPBOARD → FastX → your laptop</td></tr>
+    <tr><td><em>left-drag</em></td><td>Drag-to-highlight in <em>any</em> pane (incl. agent TUIs) → clean tmux selection → auto-copies to clipboard on release. Single-click &amp; wheel still go to the app.</td></tr>
     <tr><td><kbd>q</kbd> or <kbd>Esc</kbd></td><td>Exit copy-mode</td></tr>
     <tr><td><kbd class="prefix">F12</kbd> <kbd>Esc</kbd></td><td>Panic exit — works even when you can't tell what mode you're in</td></tr>
   </tbody>
 </table>
 
-<div class="card callout green" style="margin-top:14px;">
-  <strong>TUI apps that emit OSC 52 (an agent, Helix, modern Neovim) copy straight to your system clipboard.</strong> In an agent, pressing <kbd>y</kbd> on a content block sends an OSC&nbsp;52 escape sequence; tmux's <code>set-clipboard on</code> + <code>allow-passthrough on</code> + <code>terminal-features ",*:clipboard"</code> propagate it through to FastX, which updates your laptop's clipboard. Paste anywhere normally.
-  <p style="margin: 0.6rem 0 0;"><strong>Required FastX client-side setting (one-time toggle):</strong> in the FastX session settings, enable <em>"Applications in terminal may access clipboard"</em>. Without it, FastX silently discards the OSC&nbsp;52 sequence and your <kbd>y</kbd> press has no visible effect outside the TUI.</p>
+<div class="card callout red" style="margin-top:14px;">
+  <strong>Clipboard goes through <code>xsel</code>, NOT OSC&nbsp;52 (changed 2026-06-24).</strong> Many remote-desktop terminals (notably GNOME-Terminal/VTE over FastX) do <em>not</em> consume OSC&nbsp;52, so <code>set-clipboard on</code> made tmux dump a <strong>screen full of base64</strong> on every large copy. OSC&nbsp;52 emission is now <strong>off</strong> (<code>set-clipboard off</code>). The real clipboard route is the copy-mode <kbd>y</kbd> and left-drag bindings, which pipe the selection through <code>xsel&nbsp;--clipboard</code> → the X11 CLIPBOARD → FastX → your laptop. Copy in copy-mode (or just drag) and paste anywhere normally.
+  <p style="margin: 0.6rem 0 0;"><strong>Trade-off:</strong> TUI apps that copy <em>only</em> via OSC&nbsp;52 (an agent's <kbd>y</kbd>, Helix, nvim-osc52) no longer reach the clipboard through tmux — but on such a terminal they were dumping base64 too, so nothing that worked is lost. Copy from them via copy-mode (<kbd class="prefix">F12</kbd> <kbd>[</kbd> → <kbd>v</kbd> → <kbd>y</kbd>) or re-wire the app to <code>xsel</code>. Keep the FastX <em>"Applications in terminal may access clipboard"</em> toggle on for the X11/<code>xsel</code> bridge. If your outer terminal genuinely consumes OSC&nbsp;52, set <code>set-clipboard on</code> again.</p>
 </div>
 
 <h2 id="respawn">Cluster shutdown → respawn <span class="badge">disaster recovery</span></h2>
@@ -549,7 +551,9 @@
     <tr><td>"<code>tadmin</code> died, want it back"</td><td>Just run <code>tadmin</code> — alias auto-bootstraps the full 4-window layout</td></tr>
     <tr><td>"Cluster is shutting down / rebooting"</td><td>Save first (<kbd class="prefix">F12</kbd> <kbd>C-s</kbd>), then after reboot rebuild via <a href="#respawn">Cluster shutdown → respawn</a></td></tr>
     <tr><td>"Forgot a binding"</td><td><kbd class="prefix">F12</kbd> <kbd>Q</kbd> — catch-all fzf menu</td></tr>
-    <tr><td>"Agent / TUI <kbd>y</kbd> copy isn't reaching my laptop clipboard"</td><td>Check the FastX session setting <em>"Applications in terminal may access clipboard"</em>; verify tmux side with <code>tmux show-options -s set-clipboard</code> (should be <code>on</code>)</td></tr>
+    <tr><td>"Agent / TUI <kbd>y</kbd> (OSC&nbsp;52) copy isn't reaching my laptop clipboard"</td><td>Expected — OSC&nbsp;52 is <strong>off</strong> on terminals that can't consume it (it dumped base64). Copy via copy-mode <kbd>y</kbd> (uses <code>xsel</code>) instead, or re-wire the app to <code>xsel</code>. See the clipboard note in <a href="#copy">Copy mode</a>.</td></tr>
+    <tr><td>"Pasting injects <code>[200~</code> / <code>[201~</code> junk or scrambles a big paste"</td><td><code>set -s escape-time 20</code> (was 0) + <code>~/.inputrc</code> <code>enable-bracketed-paste on</code>. Open a <em>fresh</em> pane for the shell side. If junk persists over a laggier link, bump <code>escape-time</code> to 30; durable cure is tmux ≥3.7.</td></tr>
+    <tr><td>"Highlighting in an agent dumps character garbage (<code>[&lt;…M</code>)"</td><td>Those TUIs grab the mouse (<code>mouse_any_flag=1</code>); left-drag now does a clean tmux selection → clipboard instead of forwarding to the app. Click &amp; scroll still reach it. For the app's own drag, <kbd class="prefix">F12</kbd> <kbd>:</kbd> then <code>set -g mouse off</code>.</td></tr>
   </tbody>
 </table>
 
@@ -559,7 +563,8 @@
 
 <footer>
   Generated for the HPC cluster workflow · tmux 3.5a · home-built in <code>~/opt/tmux</code> · config at <code>~/.tmux.conf</code> · helpers in <code>~/bin/</code> (<code>tmux-bootstrap</code>, <code>tmux-sessionizer</code>, <code>tmux-diag</code>, <code>slurm-status</code>, <code>gpu-status</code>)
-  2026-05-26 — tmux clipboard via OSC 52 enabled (<code>set-clipboard on</code> + <code>allow-passthrough on</code> + <code>terminal-features ",*:clipboard"</code>) so an agent's <kbd>y</kbd> copy binding (and any other TUI emitting OSC52) updates the system clipboard end-to-end through FastX.<br>
+  2026-06-24 — <strong>paste + clipboard + mouse fix for remote-desktop (FastX) terminals</strong>: <code>set -s escape-time 20</code> (was 0) so FastX-fragmented bracketed-paste markers reassemble instead of leaking <code>[200~</code>/scramble; new <code>~/.inputrc</code> <code>enable-bracketed-paste on</code>; <code>set-clipboard off</code> + <code>terminal-features ",*:clipboard"</code> → <code>",xterm*:bpaste"</code> because VTE-over-FastX prints OSC&nbsp;52 as base64 instead of consuming it (clipboard now via the <code>xsel</code> copy bindings); and a new <code>MouseDrag1Pane</code> binding so a left-drag always does a clean tmux selection even inside mouse-grabbing agent TUIs (which now set <code>mouse_any_flag=1</code> and were dumping <code>[&lt;…M</code> codes on highlight), with tmux-yank forced to <code>@yank_selection clipboard</code>.<br>
+  2026-05-26 <span class="muted">(superseded 2026-06-24)</span> — tmux clipboard via OSC 52 enabled (<code>set-clipboard on</code> + <code>allow-passthrough on</code> + <code>terminal-features ",*:clipboard"</code>); reverted because remote-desktop terminals like VTE-over-FastX print OSC&nbsp;52 as base64 instead of consuming it.<br>
   2026-05-24 — added <code>proj_e</code> project session (<code>tproj_e</code> alias → <code>~/project-e</code>); <code>proj_d</code> agent window now has 3 panes.<br>
   2026-05-23 — added <code>tadmin</code> session (5 windows: ops/agent/mon/edit/cluster), <code>cpustat</code>+<code>colmajor</code> companions to <code>gpustat</code>, cluster window restructured to vertical stripes with multi-column flow so 100+ nodes &amp; 40+ jobs fit without truncation, <kbd>F12</kbd>&nbsp;<kbd>k</kbd>/<kbd>K</kbd> clear-screen bindings, mouse-wheel restored to scroll-into-copy-mode (was breaking scroll in Agent Code / Agent panes).
 </footer>
